@@ -16,12 +16,16 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
+const alumniRoutes = require('./routes/alumniRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 app.use('/api/auth', authRoutes);
+app.use('/api/alumni', alumniRoutes);
+app.use('/api/events', eventRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
   res.send("Alumni API is running...");
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
