@@ -8,13 +8,14 @@ const { protect, adminOnly } = require('../middleware/authMiddleware');
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const { name, department, graduationYear, company } = req.query;
+    const { name, department, graduationYear, company, email } = req.query;
 
     let filter = {};
     if (name) filter.name = { $regex: name, $options: 'i' };
     if (department) filter.department = { $regex: department, $options: 'i' };
     if (graduationYear) filter.graduationYear = graduationYear;
     if (company) filter.company = { $regex: company, $options: 'i' };
+    if (email) filter.email = email;
 
     const alumni = await Alumni.find(filter).select('-password');
     res.json(alumni);
@@ -49,7 +50,7 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this profile' });
     }
 
-    const { name, department, graduationYear, currentJobTitle, company, location, linkedin, phone, bio } = req.body;
+    const { name, department, graduationYear, currentJobTitle, company, location, linkedin, phone, bio, profilePicture } = req.body;
 
     alumni.name = name || alumni.name;
     alumni.department = department || alumni.department;
@@ -60,6 +61,7 @@ router.put('/:id', protect, async (req, res) => {
     alumni.linkedin = linkedin || alumni.linkedin;
     alumni.phone = phone || alumni.phone;
     alumni.bio = bio || alumni.bio;
+    if (profilePicture !== undefined) alumni.profilePicture = profilePicture;
 
     const updated = await alumni.save();
     const result = updated.toObject();

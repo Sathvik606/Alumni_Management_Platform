@@ -74,6 +74,30 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   PUT /api/donations/:id
+// @desc    Update a donation record (admin only)
+// @access  Private/Admin
+router.put('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const donation = await Donation.findById(req.params.id);
+    if (!donation) return res.status(404).json({ message: 'Donation not found' });
+
+    const { amount, currency, purpose, message, paymentMethod, status } = req.body;
+
+    donation.amount = typeof amount === 'number' ? amount : donation.amount;
+    donation.currency = currency || donation.currency;
+    donation.purpose = purpose || donation.purpose;
+    donation.message = message ?? donation.message;
+    donation.paymentMethod = paymentMethod || donation.paymentMethod;
+    donation.status = status || donation.status;
+
+    const updated = await donation.save();
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   DELETE /api/donations/:id
 // @desc    Delete a donation record (admin only)
 // @access  Private/Admin

@@ -15,6 +15,16 @@ const EventSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    startTime: {
+      type: String,
+      required: true,
+      match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+    },
+    endTime: {
+      type: String,
+      required: true,
+      match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+    },
     location: {
       type: String,
       required: true,
@@ -36,6 +46,29 @@ const EventSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Alumni',
+      },
+    ],
+    guests: [
+      {
+        email: {
+          type: String,
+          required: true,
+          lowercase: true,
+        },
+        name: {
+          type: String,
+        },
+        profilePicture: {
+          type: String,
+        },
+        alumniId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Alumni',
+        },
+        addedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
     isPublic: {

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Event = require('../models/Event');
+const Alumni = require('../models/Alumni');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
 // @route   GET /api/events
@@ -33,16 +34,19 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private/Admin
 router.post('/', protect, adminOnly, async (req, res) => {
   try {
-    const { title, description, date, location, mode, maxAttendees, isPublic } = req.body;
+    const { title, description, date, startTime, endTime, location, mode, maxAttendees, isPublic, guests } = req.body;
 
     const event = await Event.create({
       title,
       description,
       date,
+      startTime,
+      endTime,
       location,
       mode,
       maxAttendees,
       isPublic,
+      guests: guests || [],
       createdBy: req.user._id,
     });
 
@@ -57,7 +61,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
 // @access  Private/Admin
 router.put('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const { title, description, date, location, mode, maxAttendees, isPublic } = req.body;
+    const { title, description, date, startTime, endTime, location, mode, maxAttendees, isPublic, guests } = req.body;
 
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ message: 'Event not found' });
@@ -65,10 +69,13 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     event.title = title || event.title;
     event.description = description || event.description;
     event.date = date || event.date;
+    event.startTime = startTime || event.startTime;
+    event.endTime = endTime || event.endTime;
     event.location = location || event.location;
     event.mode = mode || event.mode;
     event.maxAttendees = maxAttendees || event.maxAttendees;
     event.isPublic = typeof isPublic === 'boolean' ? isPublic : event.isPublic;
+    if (guests) event.guests = guests;
 
     const updated = await event.save();
     res.json(updated);
@@ -133,6 +140,62 @@ router.post('/:id/unrsvp', protect, async (req, res) => {
 
     await event.save();
     res.json({ message: 'RSVP cancelled', eventId: event._id });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   POST /api/events/:id/guests
+// @desc    Add guest to event by email (admin only)
+// @access  Private/Admin
+router.post('/:id/guests', protect, adminOnly, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // Check if guest already added
+    const existingGuest = event.guests.find(g => g.email.toLowerCase() === email.toLowerCase());
+    if (existingGuest) {
+      return res.status(400).json({ message: 'Guest already added' });
+    }
+
+    // Look up alumni by email
+    const alumni = await Alumni.findOne({ email: email.toLowerCase() });
+    
+    const guestData = {
+      email: email.toLowerCase(),
+      name: alumni ? alumni.name : null,
+      profilePicture: alumni ? alumni.profilePicture : null,
+      alumniId: alumni ? alumni._id : null,
+    };
+
+    event.guests.push(guestData);
+    await event.save();
+
+    res.json({ message: 'Guest added successfully', guest: guestData });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   DELETE /api/events/:id/guests/:guestId
+// @desc    Remove guest from event (admin only)
+// @access  Private/Admin
+router.delete('/:id/guests/:guestId', protect, adminOnly, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    event.guests = event.guests.filter(g => g._id.toString() !== req.params.guestId);
+    await event.save();
+
+    res.json({ message: 'Guest removed successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
