@@ -24,6 +24,32 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/alumni/profile/me
+// @desc    Get logged in alumni's own profile
+// @access  Private
+router.get('/profile/me', protect, async (req, res) => {
+  try {
+    const alumni = await Alumni.findById(req.user._id).select('-password');
+    res.json(alumni);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// @route   DELETE /api/alumni/me
+// @desc    Permanently delete own account
+// @access  Private
+router.delete('/me', protect, async (req, res) => {
+  try {
+    const alumni = await Alumni.findById(req.user._id);
+    if (!alumni) return res.status(404).json({ message: 'Account not found' });
+    await alumni.deleteOne();
+    res.json({ message: 'Account permanently deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   GET /api/alumni/:id
 // @desc    Get single alumni profile
 // @access  Private
@@ -88,13 +114,32 @@ router.delete('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-// @route   GET /api/alumni/profile/me
-// @desc    Get logged in alumni's own profile
-// @access  Private
-router.get('/profile/me', protect, async (req, res) => {
+// @route   PUT /api/alumni/:id/role
+// @desc    Update alumni role (admin only)
+// @access  Private/Admin
+router.put('/:id/role', protect, adminOnly, async (req, res) => {
   try {
-    const alumni = await Alumni.findById(req.user._id).select('-password');
-    res.json(alumni);
+    const { role } = req.body;
+    
+    // Validate role
+    if (!role || !['alumni', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be "user" or "admin"' });
+    }
+
+    const alumni = await Alumni.findById(req.params.id);
+    if (!alumni) return res.status(404).json({ message: 'Alumni not found' });
+
+    // Prevent changing own role
+    if (alumni._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({ message: 'Cannot change your own role' });
+    }
+
+    alumni.role = role;
+    const updated = await alumni.save();
+    const result = updated.toObject();
+    delete result.password;
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

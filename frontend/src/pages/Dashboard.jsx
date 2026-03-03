@@ -151,7 +151,7 @@ export default function DashboardPage() {
             <ActionButton label="Record donation" to="/donations" icon={<Gift className="size-4" />} />
             <ActionButton label="Browse events" to="/events" icon={<CalendarDays className="size-4" />} />
             <ActionButton label="Manage alumni" to="/alumni" icon={<Users className="size-4" />} />
-            <ActionButton label="View jobs" to="/" icon={<Briefcase className="size-4" />} />
+            <ActionButton label="View jobs" to="/jobs" icon={<Briefcase className="size-4" />} />
             <ActionButton label="Update profile" to="/profile" icon={<Users className="size-4" />} />
           </div>
         </CardContent>

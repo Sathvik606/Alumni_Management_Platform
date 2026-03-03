@@ -50,4 +50,9 @@ function DialogFooter({ className, ...props }) {
   return <div className={cn('flex flex-wrap items-center justify-end gap-3 pt-6', className)} {...props} />;
 }
 
-export { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter };
+// Passthrough wrapper for compatibility — Dialog already renders the container
+function DialogContent({ className, children, ...props }) {
+  return <div className={cn('w-full', className)} {...props}>{children}</div>;
+}
+
+export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter };

@@ -53,6 +53,22 @@ const AlumniSchema = new mongoose.Schema({
   },
   profilePicture: {
     type: String
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String
+  },
+  emailVerificationExpires: {
+    type: Date
+  },
+  passwordResetToken: {
+    type: String
+  },
+  passwordResetExpires: {
+    type: Date
   }
 }, { timestamps: true });
 

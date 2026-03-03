@@ -3,16 +3,68 @@ import { HoverCard as HoverCardPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
+// Context to share touch device state
+const HoverCardContext = React.createContext({ isTouchDevice: false, open: false, setOpen: () => {} });
+
 function HoverCard({
+  openDelay = 200,
+  closeDelay = 200,
   ...props
 }) {
-  return <HoverCardPrimitive.Root data-slot="hover-card" {...props} />;
+  const [open, setOpen] = React.useState(false);
+  const isTouchDevice = React.useMemo(() => {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }, []);
+
+  // For touch devices, control open state manually
+  if (isTouchDevice) {
+    return (
+      <HoverCardContext.Provider value={{ isTouchDevice, open, setOpen }}>
+        <HoverCardPrimitive.Root 
+          data-slot="hover-card" 
+          open={open}
+          onOpenChange={setOpen}
+          {...props} 
+        />
+      </HoverCardContext.Provider>
+    );
+  }
+
+  // For non-touch devices, use default hover behavior
+  return (
+    <HoverCardContext.Provider value={{ isTouchDevice, open, setOpen }}>
+      <HoverCardPrimitive.Root 
+        data-slot="hover-card" 
+        openDelay={openDelay}
+        closeDelay={closeDelay}
+        {...props} 
+      />
+    </HoverCardContext.Provider>
+  );
 }
 
 function HoverCardTrigger({
+  className,
   ...props
 }) {
-  return (<HoverCardPrimitive.Trigger data-slot="hover-card-trigger" {...props} />);
+  const { isTouchDevice, open, setOpen } = React.useContext(HoverCardContext);
+
+  // For touch devices, toggle on click
+  if (isTouchDevice) {
+    return (
+      <HoverCardPrimitive.Trigger 
+        data-slot="hover-card-trigger"
+        className={cn("cursor-pointer touch-manipulation", className)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(!open);
+        }}
+        {...props} 
+      />
+    );
+  }
+
+  return <HoverCardPrimitive.Trigger data-slot="hover-card-trigger" className={className} {...props} />;
 }
 
 function HoverCardContent({

@@ -1,24 +1,28 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { alumniService } from '@/services/alumniService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar } from '@/components/ui/avatar';
-import { Upload, User, X, Camera, Trash2 } from 'lucide-react';
+import { Upload, User, X, Camera, Trash2, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const fileInputRef = useRef(null);
+  const navigate = useNavigate();
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -96,6 +100,19 @@ export default function ProfilePage() {
     });
   };
 
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await alumniService.deleteAccount();
+      logout();
+      toast.success('Account deleted', { description: 'Your account has been permanently removed.' });
+      navigate('/login');
+    } catch (err) {
+      toast.error('Failed to delete account', { description: err.response?.data?.message || 'Please try again.' });
+      setDeletingAccount(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form) return;
@@ -169,12 +186,19 @@ export default function ProfilePage() {
             <div className="relative group">
               <Avatar className="size-32 ring-4 ring-border/30">
                 {form.profilePicture ? (
-                  <img src={form.profilePicture} alt={form.name} className="object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-primary/10 text-4xl font-medium text-foreground">
-                    {form.name.substring(0, 2).toUpperCase()}
-                  </div>
-                )}
+                  <img
+                    src={form.profilePicture}
+                    alt={form.name}
+                    className="object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div
+                  className="flex h-full w-full items-center justify-center bg-primary/10 text-4xl font-medium text-foreground"
+                  style={{ display: form.profilePicture ? 'none' : 'flex' }}
+                >
+                  {form.name ? form.name.substring(0, 2).toUpperCase() : <User className="size-12" />}
+                </div>
               </Avatar>
               <button
                 type="button"
@@ -269,6 +293,50 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
         </div>
+
+        {/* Danger Zone */}
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <TriangleAlert className="size-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>Permanent actions that cannot be undone.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <div>
+                <p className="font-medium text-sm">Delete my account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Permanently removes your profile, data, and access. This cannot be reversed.</p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={deletingAccount}>
+                    <Trash2 className="size-4 mr-2" />
+                    {deletingAccount ? 'Deleting...' : 'Delete Account'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Permanently delete your account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will immediately and permanently delete your profile, all your data, and revoke your access. <strong>This action cannot be undone.</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Yes, permanently delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={showPhotoDialog} onOpenChange={setShowPhotoDialog}>

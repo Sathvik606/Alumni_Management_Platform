@@ -4,16 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { alumniService } from '@/services/alumniService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Pencil, Trash2, User } from 'lucide-react';
+import { Users, Pencil, Trash2, User, ChevronLeft, ChevronRight, Download, Shield, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportAlumni } from '@/utils/exportUtils';
 
 const filterDefaults = { name: '', department: '', graduationYear: '' };
+const ITEMS_PER_PAGE = 20;
 
 export default function AlumniPage() {
   const { user } = useAuthStore();
@@ -23,14 +26,29 @@ export default function AlumniPage() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState({ open: false, record: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
+  const [currentPage, setCurrentPage] = useState(1);
   const isAdmin = user?.role === 'admin';
+
+  // Calculate pagination
+  const totalPages = Math.ceil(alumni.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedAlumni = alumni.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const fetchAlumni = async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await alumniService.list(filters);
-      setAlumni(data);
+      // Strip empty string values so backend doesn't filter on blank fields
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, v]) => v !== '')
+      );
+      const data = await alumniService.list(cleanFilters);
+      setAlumni(Array.isArray(data) ? data : []);
     } catch (err) {
       setError('Unable to load alumni.');
     } finally {
@@ -42,7 +60,25 @@ export default function AlumniPage() {
     fetchAlumni();
   }, []);
 
-  const onFilterChange = (key, value) => setFilters((p) => ({ ...p, [key]: value }));
+  const onFilterChange = (key, value) => {
+    setFilters((p) => ({ ...p, [key]: value }));
+    setCurrentPage(1);
+  };
+
+  const handleReset = async () => {
+    setFilters(filterDefaults);
+    setCurrentPage(1);
+    setLoading(true);
+    setError('');
+    try {
+      const data = await alumniService.list({});
+      setAlumni(data);
+    } catch {
+      setError('Unable to load alumni.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUpdate = async () => {
     if (!modal.record) return;
@@ -100,6 +136,23 @@ export default function AlumniPage() {
     }
   };
 
+  const handleRoleChange = async (id, currentRole) => {
+    const newRole = currentRole === 'admin' ? 'alumni' : 'admin';
+    try {
+      const updated = await alumniService.updateRole(id, newRole);
+      setAlumni((prev) => prev.map((a) => (a._id === updated._id ? updated : a)));
+      toast.success('Role updated', {
+        description: `User role changed to ${newRole}`,
+      });
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Role update failed';
+      setError(errorMsg);
+      toast.error('Failed to update role', {
+        description: errorMsg,
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
@@ -135,15 +188,31 @@ export default function AlumniPage() {
           </div>
           <div className="flex items-end gap-3">
             <Button onClick={fetchAlumni} className="flex-1">Apply</Button>
-            <Button variant="ghost" onClick={() => { setFilters(filterDefaults); fetchAlumni(); }}>Reset</Button>
+            <Button variant="ghost" onClick={handleReset}>Reset</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Directory</CardTitle>
-          <CardDescription>Update allowed for your profile{isAdmin ? ' and admin overrides' : ''}.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Directory</CardTitle>
+              <CardDescription>Update allowed for your profile{isAdmin ? ' and admin overrides' : ''}.</CardDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                exportAlumni(alumni);
+                toast.success('Export started', { description: 'Downloading alumni data as CSV...' });
+              }}
+              disabled={alumni.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -167,43 +236,75 @@ export default function AlumniPage() {
                     <TableHead>Department</TableHead>
                     <TableHead>Year</TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
+                    {isAdmin && <TableHead>Role</TableHead>}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {alumni.map((item) => (
+                  {paginatedAlumni.map((item) => (
                     <TableRow key={item._id}>
                       <TableCell>
                         <Avatar className="size-9">
                           {item.profilePicture ? (
-                            <img src={item.profilePicture} alt={item.name} className="object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-medium text-foreground">
-                              {item.name.substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
+                            <img
+                              src={item.profilePicture}
+                              alt={item.name}
+                              className="object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                            />
+                          ) : null}
+                          <div
+                            className="flex h-full w-full items-center justify-center bg-primary/10 text-sm font-medium text-foreground"
+                            style={{ display: item.profilePicture ? 'none' : 'flex' }}
+                          >
+                            {item.name ? item.name.substring(0, 2).toUpperCase() : <User className="size-4" />}
+                          </div>
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-semibold">{item.name}</TableCell>
                       <TableCell>{item.department}</TableCell>
                       <TableCell>{item.graduationYear}</TableCell>
                       <TableCell>{item.company || '—'}</TableCell>
-                      <TableCell>{item.location || '—'}</TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <Badge 
+                            variant={item.role === 'admin' ? 'default' : 'secondary'}
+                            className="gap-1"
+                          >
+                            {item.role === 'admin' ? (
+                              <><ShieldCheck className="h-3 w-3" /> Admin</>
+                            ) : (
+                              <><User className="h-3 w-3" /> Alumni</>
+                            )}
+                          </Badge>
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {isAdmin && item._id !== user?._id && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleRoleChange(item._id, item.role)}
+                              title={`Change role to ${item.role === 'admin' ? 'alumni' : 'admin'}`}
+                              aria-label={`Change ${item.name}'s role to ${item.role === 'admin' ? 'alumni' : 'admin'}`}
+                            >
+                              <Shield className="size-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon-sm"
                             onClick={() => setModal({ open: true, record: item })}
                             disabled={!isAdmin && item._id !== user?._id}
+                            aria-label={`Edit ${item.name}'s profile`}
                           >
                             <Pencil className="size-4" />
                           </Button>
                           {isAdmin && (
                             <AlertDialog open={deleteDialog.open && deleteDialog.id === item._id} onOpenChange={(open) => setDeleteDialog({ open, id: open ? item._id : null })}>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon-sm">
+                                <Button variant="ghost" size="icon-sm" aria-label={`Delete ${item.name}'s profile`}>
                                   <Trash2 className="size-4 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -231,12 +332,46 @@ export default function AlumniPage() {
               </Table>
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          {!loading && alumni.length > ITEMS_PER_PAGE && (
+            <nav className="mt-4 flex items-center justify-between" aria-label="Alumni pagination">
+              <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
+                Showing {startIndex + 1}-{Math.min(endIndex, alumni.length)} of {alumni.length} alumni
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="Go to previous page"
+                >
+                  <ChevronLeft className="size-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="text-sm text-muted-foreground" aria-current="page">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="Go to next page"
+                >
+                  Next
+                  <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </div>
+            </nav>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={modal.open} onOpenChange={(open) => setModal((p) => ({ ...p, open }))}>
         {modal.record && (
-          <div>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit profile</DialogTitle>
               <DialogDescription>Only your own profile can be edited unless you are an admin.</DialogDescription>
@@ -303,7 +438,7 @@ export default function AlumniPage() {
               <Button variant="ghost" onClick={() => setModal({ open: false, record: null })}>Cancel</Button>
               <Button onClick={handleUpdate}>Save</Button>
             </DialogFooter>
-          </div>
+          </DialogContent>
         )}
       </Dialog>
     </div>

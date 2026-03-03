@@ -16,11 +16,13 @@ import { eventService } from '@/services/eventService';
 import { alumniService } from '@/services/alumniService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CalendarDays, CalendarIcon, Pencil, Trash2, CheckCircle2, Clock, UserPlus, X } from 'lucide-react';
+import { CalendarDays, CalendarIcon, Pencil, Trash2, CheckCircle2, Clock, UserPlus, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { exportEvents } from '@/utils/exportUtils';
 
 const defaultEvent = { title: '', description: '', date: '', startTime: '09:00', endTime: '17:00', location: '', mode: 'online', maxAttendees: '', isPublic: true, guests: [] };
+const ITEMS_PER_PAGE = 20;
 
 // Helper function to convert 24-hour time to 12-hour format
 const convertTo12Hour = (time24) => {
@@ -61,8 +63,35 @@ export default function EventsPage() {
   const [modalCalendarOpen, setModalCalendarOpen] = useState(false);
   const [guestEmail, setGuestEmail] = useState('');
   const [modalGuestEmail, setModalGuestEmail] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [eventFilter, setEventFilter] = useState('upcoming'); // 'all', 'upcoming', 'past'
   const calendarRef = useRef(null);
   const modalCalendarRef = useRef(null);
+
+  // Filter events based on selected filter
+  const filteredEvents = events.filter((event) => {
+    if (!event.date) return eventFilter === 'all';
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (eventFilter === 'upcoming') {
+      return eventDate >= today;
+    } else if (eventFilter === 'past') {
+      return eventDate < today;
+    }
+    return true; // 'all'
+  });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredEvents.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedEvents = filteredEvents.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   // 12-hour time format state for create form
   const [startTime12, setStartTime12] = useState(convertTo12Hour('09:00'));
@@ -419,7 +448,7 @@ export default function EventsPage() {
                       {form.date ? format(new Date(form.date), 'MMM dd, yyyy') : <span className="text-muted-foreground">Pick date</span>}
                     </Button>
                     {calendarOpen && (
-                      <div className="absolute z-[9999] mt-2 rounded-2xl border border-border/70 bg-popover shadow-2xl p-3 overflow-hidden max-w-[280px]">
+                      <div className="absolute z-9999 mt-2 rounded-2xl border border-border/70 bg-popover shadow-2xl p-3 overflow-hidden max-w-70">
                         <Calendar
                           mode="single"
                           selected={form.date ? new Date(form.date) : undefined}
@@ -555,7 +584,7 @@ export default function EventsPage() {
                 {/* Helper Text */}
                 {form.date && form.startTime && form.endTime && (
                   <div className="flex items-start gap-2 rounded-lg bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                     <p>
                       This event will take place on <span className="font-medium text-foreground">{format(new Date(form.date), 'MMMM dd, yyyy')}</span> from{' '}
                       <span className="font-medium text-foreground">{startTime12.hours}:{startTime12.minutes} {startTime12.period}</span> until{' '}
@@ -740,8 +769,58 @@ export default function EventsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upcoming events</CardTitle>
-          <CardDescription>Sorted by date.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>
+                {eventFilter === 'upcoming' ? 'Upcoming events' : eventFilter === 'past' ? 'Past events' : 'All events'}
+              </CardTitle>
+              <CardDescription>Sorted by date.</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  exportEvents(filteredEvents);
+                  toast.success('Export started', { description: 'Downloading events data as CSV...' });
+                }}
+                disabled={filteredEvents.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button 
+                variant={eventFilter === 'upcoming' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setEventFilter('upcoming');
+                  setCurrentPage(1);
+                }}
+              >
+                Upcoming
+              </Button>
+              <Button 
+                variant={eventFilter === 'past' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setEventFilter('past');
+                  setCurrentPage(1);
+                }}
+              >
+                Past
+              </Button>
+              <Button 
+                variant={eventFilter === 'all' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => {
+                  setEventFilter('all');
+                  setCurrentPage(1);
+                }}
+              >
+                All
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -750,9 +829,9 @@ export default function EventsPage() {
               <Skeleton className="h-10" />
               <Skeleton className="h-10" />
             </div>
-          ) : events.length === 0 ? (
+          ) : filteredEvents.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/70 bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-              No events yet.
+              No {eventFilter === 'upcoming' ? 'upcoming' : eventFilter === 'past' ? 'past' : ''} events found.
             </div>
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/70">
@@ -769,8 +848,13 @@ export default function EventsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((event) => {
+                  {paginatedEvents.map((event) => {
                     const joined = event.attendees?.some((a) => a === user?._id || a?._id === user?._id);
+                    const attendeeCount = event.attendees?.length || 0;
+                    const maxAttendees = event.maxAttendees;
+                    const isNearCapacity = maxAttendees && attendeeCount >= maxAttendees * 0.8;
+                    const isFull = maxAttendees && attendeeCount >= maxAttendees;
+                    
                     return (
                       <TableRow key={event._id}>
                         <TableCell className="font-semibold">{event.title}</TableCell>
@@ -778,7 +862,17 @@ export default function EventsPage() {
                         <TableCell>{event.startTime && event.endTime ? `${formatTime12Hour(event.startTime)} - ${formatTime12Hour(event.endTime)}` : '—'}</TableCell>
                         <TableCell>{event.location || '—'}</TableCell>
                         <TableCell className="capitalize">{event.mode}</TableCell>
-                        <TableCell>{event.attendees?.length || 0}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{attendeeCount}{maxAttendees ? `/${maxAttendees}` : ''}</span>
+                            {isFull && (
+                              <Badge variant="destructive" className="text-xs">Full</Badge>
+                            )}
+                            {!isFull && isNearCapacity && (
+                              <Badge variant="secondary" className="text-xs">Almost Full</Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             <Button variant="secondary" size="sm" onClick={() => handleRsvp(event._id, joined)}>
@@ -821,6 +915,38 @@ export default function EventsPage() {
               </Table>
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          {!loading && filteredEvents.length > ITEMS_PER_PAGE && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1}-{Math.min(endIndex, filteredEvents.length)} of {filteredEvents.length} events
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="size-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="size-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -856,7 +982,7 @@ export default function EventsPage() {
                   />
                 </div>
                 
-                <div className="space-y-2 relative z-[100]">
+                <div className="space-y-2 relative z-100">
                   <Label>Date</Label>
                   <div className="relative" ref={modalCalendarRef}>
                     <Button
@@ -869,7 +995,7 @@ export default function EventsPage() {
                       {modal.record.date ? format(new Date(modal.record.date), 'PPP') : <span className="text-muted-foreground">Pick a date</span>}
                     </Button>
                     {modalCalendarOpen && (
-                      <div className="absolute z-[9999] mt-2 rounded-2xl border border-border/70 bg-popover shadow-2xl p-3 overflow-hidden max-w-[280px]">
+                      <div className="absolute z-9999 mt-2 rounded-2xl border border-border/70 bg-popover shadow-2xl p-3 overflow-hidden max-w-70">
                         <Calendar
                           mode="single"
                           selected={modal.record.date ? new Date(modal.record.date) : undefined}

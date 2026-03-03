@@ -21,4 +21,12 @@ export const alumniService = {
     const { data } = await api.get('/alumni/profile/me');
     return data;
   },
+  async updateRole(id, role) {
+    const { data } = await api.put(`/alumni/${id}/role`, { role });
+    return data;
+  },
+  async deleteAccount() {
+    const { data } = await api.delete('/alumni/me');
+    return data;
+  },
 };

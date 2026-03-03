@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import ThemeToggle from '@/components/ThemeToggle';
 import useAuthStore from '@/store/authStore';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, loading } = useAuthStore();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = location.state?.from?.pathname || '/';
@@ -52,12 +54,16 @@ export default function LoginPage() {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-primary/10 px-4 py-8">
-      <div className="absolute right-6 top-6"><ThemeToggle /></div>
+    <main className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-primary/10 px-4 py-8">
+      <div className="absolute right-6 top-6">
+        <ThemeToggle aria-label="Toggle theme" />
+      </div>
       <motion.div
         className="w-full max-w-md rounded-3xl border border-border/70 bg-card/90 p-8 sm:p-10 shadow-2xl shadow-primary/10 backdrop-blur"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+        role="region"
+        aria-label="Login form"
       >
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
@@ -70,7 +76,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -80,22 +86,45 @@ export default function LoginPage() {
               placeholder="you@example.com"
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'login-error' : undefined}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link 
+                to="/forgot-password" 
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative">
             <Input
               id="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={6}
               placeholder="••••••••"
               value={form.password}
               onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+              aria-invalid={!!error}
+              aria-describedby={error ? 'login-error' : undefined}
+              className="pr-10"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+            </div>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full h-11" disabled={loading}>
+          {error && <p id="login-error" className="text-sm text-destructive" role="alert">{error}</p>}
+          <Button type="submit" className="w-full h-11" disabled={loading} aria-label="Sign in to your account">
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
@@ -113,7 +142,8 @@ export default function LoginPage() {
           type="button"
           variant="outline"
           className="w-full h-11 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all shadow-sm hover:shadow-md"
-          onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/google`}
+          aria-label="Continue with Google OAuth"
         >
           <svg className="mr-2 h-5 w-5" viewBox="0 0 48 48">
             <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
@@ -131,6 +161,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </motion.div>
-    </div>
+    </main>
   );
 }

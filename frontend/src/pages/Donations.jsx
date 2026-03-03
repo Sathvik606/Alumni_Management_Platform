@@ -13,8 +13,9 @@ import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, C
 import { donationService } from '@/services/donationService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Gift, Pencil, Trash2 } from 'lucide-react';
+import { Gift, Pencil, Trash2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportDonations } from '@/utils/exportUtils';
 
 const defaultForm = {
   amount: '',
@@ -24,6 +25,7 @@ const defaultForm = {
   paymentMethod: 'online',
   status: 'completed',
 };
+const ITEMS_PER_PAGE = 20;
 
 export default function DonationsPage() {
   const { user } = useAuthStore();
@@ -35,8 +37,19 @@ export default function DonationsPage() {
   const [success, setSuccess] = useState('');
   const [modal, setModal] = useState({ open: false, donation: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const isAdmin = user?.role === 'admin';
+
+  // Calculate pagination
+  const totalPages = Math.ceil(donations.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedDonations = donations.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   const fetchDonations = async () => {
     setError('');
@@ -192,7 +205,6 @@ export default function DonationsPage() {
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Record donation</CardTitle>
-            <CardDescription>Data is sent to the backend immediately.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -287,11 +299,25 @@ export default function DonationsPage() {
               <CardTitle>Donation records</CardTitle>
               <CardDescription>Displays {isAdmin ? 'all donations (admin only)' : 'your submissions'}.</CardDescription>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-semibold">
-                {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalAmount)}
-              </p>
-              <p className="text-xs text-muted-foreground">Total amount</p>
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right">
+                <p className="text-2xl font-semibold">
+                  {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalAmount)}
+                </p>
+                <p className="text-xs text-muted-foreground">Total amount</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  exportDonations(donations);
+                  toast.success('Export started', { description: 'Downloading donations data as CSV...' });
+                }}
+                disabled={donations.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -320,7 +346,7 @@ export default function DonationsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {donations.map((donation) => (
+                    {paginatedDonations.map((donation) => (
                       <TableRow key={donation._id}>
                         <TableCell className="font-semibold">{donation.purpose}</TableCell>
                         <TableCell>
@@ -377,6 +403,38 @@ export default function DonationsPage() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loading && donations.length > ITEMS_PER_PAGE && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1}-{Math.min(endIndex, donations.length)} of {donations.length} donations
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="size-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="size-4 ml-1" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

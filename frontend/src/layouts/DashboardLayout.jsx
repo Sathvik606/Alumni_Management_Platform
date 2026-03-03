@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Gift, Users, CalendarDays, UserRound, LogOut, Menu, X } from 'lucide-react';
+import { Home, Gift, Users, CalendarDays, Briefcase, UserRound, LogOut, Menu, X } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -14,6 +14,7 @@ const navItems = [
   { label: 'Donations', icon: Gift, to: '/donations' },
   { label: 'Alumni', icon: Users, to: '/alumni' },
   { label: 'Events', icon: CalendarDays, to: '/events' },
+  { label: 'Jobs', icon: Briefcase, to: '/jobs' },
   { label: 'Profile', icon: UserRound, to: '/profile' },
 ];
 
@@ -79,12 +80,19 @@ export default function DashboardLayout() {
             <div className="rounded-xl border border-border/70 bg-card/60 p-3 text-sm">
               <div className="flex items-center gap-3 mb-2">
                 {user?.profilePicture ? (
-                  <img src={user.profilePicture} alt={user.name} className="size-10 rounded-full object-cover" />
-                ) : (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-foreground">
-                    {user?.name?.substring(0, 2).toUpperCase()}
-                  </div>
-                )}
+                  <img
+                    src={user.profilePicture}
+                    alt={user.name}
+                    className="size-10 rounded-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div
+                  className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-foreground"
+                  style={{ display: user?.profilePicture ? 'none' : 'flex' }}
+                >
+                  {user?.name ? user.name.substring(0, 2).toUpperCase() : <UserRound className="size-5" />}
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground">Signed in as</p>
                   <p className="font-semibold leading-tight truncate">{user?.name}</p>
@@ -176,7 +184,7 @@ export default function DashboardLayout() {
         </motion.div>
       )}
 
-      <main className="flex-1 bg-gradient-to-b from-background via-background to-accent/5">
+      <main className="flex-1 bg-linear-to-b from-background via-background to-accent/5">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Outlet />
         </div>
