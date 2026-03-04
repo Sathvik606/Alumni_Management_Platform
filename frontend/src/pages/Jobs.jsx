@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { jobService } from '@/services/jobService';
 import useAuthStore from '@/store/authStore';
 import { Briefcase, ExternalLink, MapPin, Pencil, Trash2, Building2, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '@/components/ui/combobox';
 import { toast } from 'sonner';
 import { exportJobs } from '@/utils/exportUtils';
 
@@ -221,28 +222,36 @@ export default function JobsPage() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Job Type</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                <Combobox
                   value={form.type}
-                  onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+                  onValueChange={(val) => val && setForm((p) => ({ ...p, type: val }))}
                 >
-                  <option value="full-time">Full-time</option>
-                  <option value="part-time">Part-time</option>
-                  <option value="internship">Internship</option>
-                  <option value="contract">Contract</option>
-                </select>
+                  <ComboboxInput readOnly placeholder="Select job type" className="w-full" />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      <ComboboxItem value="full-time" label="Full-time">Full-time</ComboboxItem>
+                      <ComboboxItem value="part-time" label="Part-time">Part-time</ComboboxItem>
+                      <ComboboxItem value="internship" label="Internship">Internship</ComboboxItem>
+                      <ComboboxItem value="contract" label="Contract">Contract</ComboboxItem>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
               </div>
               <div className="space-y-2">
                 <Label>Work Mode</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                <Combobox
                   value={form.mode}
-                  onChange={(e) => setForm((p) => ({ ...p, mode: e.target.value }))}
+                  onValueChange={(val) => val && setForm((p) => ({ ...p, mode: val }))}
                 >
-                  <option value="onsite">Onsite</option>
-                  <option value="remote">Remote</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
+                  <ComboboxInput readOnly placeholder="Select work mode" className="w-full" />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      <ComboboxItem value="onsite" label="Onsite">Onsite</ComboboxItem>
+                      <ComboboxItem value="remote" label="Remote">Remote</ComboboxItem>
+                      <ComboboxItem value="hybrid" label="Hybrid">Hybrid</ComboboxItem>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
               </div>
             </div>
 
