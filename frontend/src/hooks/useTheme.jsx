@@ -7,7 +7,7 @@ const STORAGE_KEY = 'amp-theme';
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'light';
-    return localStorage.getItem(STORAGE_KEY) || 'light';
+    return localStorage.getItem(STORAGE_KEY) || 'dark';
   });
 
   useEffect(() => {

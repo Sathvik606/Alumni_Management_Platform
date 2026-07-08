@@ -33,7 +33,7 @@ export default function AuthCallback() {
             description: 'You have successfully signed in with Google.',
           });
 
-          navigate('/', { replace: true });
+          navigate('/dashboard', { replace: true });
         } catch (err) {
           console.error('Token parsing error:', err);
           toast.error('Authentication failed', {

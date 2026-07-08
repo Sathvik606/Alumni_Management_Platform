@@ -15,6 +15,7 @@ import AuthCallback from './pages/AuthCallback';
 import ForgotPasswordPage from './pages/ForgotPassword';
 import ResetPasswordPage from './pages/ResetPassword';
 import VerifyEmailPage from './pages/VerifyEmail';
+import LandingPage from './pages/Landing';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeProvider } from './hooks/useTheme.jsx';
@@ -25,19 +26,23 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors theme="dark" />
         <AnimatePresence mode="wait">
-          <Suspense fallback={<SplashScreen />}> 
+          <Suspense fallback={<SplashScreen />}>
             <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+
+              {/* Protected dashboard routes */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<DashboardLayout />}>
-                  <Route index element={<DashboardPage />} />
+                  <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="donations" element={<DonationsPage />} />
                   <Route path="alumni" element={<AlumniPage />} />
                   <Route path="events" element={<EventsPage />} />
@@ -45,7 +50,9 @@ function App() {
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>
-              <Route path="*" element={<Navigate to="/login" replace />} />
+
+              {/* Catch-all → landing */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </AnimatePresence>
