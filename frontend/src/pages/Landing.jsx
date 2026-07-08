@@ -254,7 +254,7 @@ function MarqueeEventCard({ card }) {
 /* ─── Hero visual panel ─────────────────────────────────────────────── */
 function HeroVisual() {
   return (
-    <div className="relative h-[480px] lg:h-[560px] w-full rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.015]">
+    <div className="relative h-[360px] md:h-[420px] lg:h-[520px] w-full rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.015]">
       {/* Central atmospheric glow */}
       <GradientGlow size="lg" className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30" />
 
@@ -335,8 +335,8 @@ export default function LandingPage() {
         <GradientGlow size="xl" className="-top-40 -left-40 opacity-60" />
         <GradientGlow size="lg" className="top-1/2 right-0 translate-x-1/2 opacity-30" />
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full py-24 lg:py-32">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full py-16 md:py-20 lg:py-24">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: text */}
             <motion.div
               initial="hidden"
