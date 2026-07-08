@@ -72,7 +72,11 @@ const rollingEvents = [
   { title: 'Tech Career Fair', date: 'Mar 05 · 10:00 AM', mode: 'In-Person', color: '#38D9A9' },
   { title: 'Startup Pitch Night', date: 'Mar 20 · 5:30 PM', mode: 'Hybrid', color: '#FB923C' },
   { title: 'Mock Interview Bootcamp', date: 'Apr 02 · 9:00 AM', mode: 'Virtual', color: '#C8FA5F' },
-  { title: 'Women in Tech Mixer', date: 'Apr 18 · 7:00 PM', mode: 'In-Person', color: '#A78BFA' }
+  { title: 'Women in Tech Mixer', date: 'Apr 18 · 7:00 PM', mode: 'In-Person', color: '#A78BFA' },
+  { title: 'Alumni Mentorship Kickoff', date: 'May 05 · 5:00 PM', mode: 'Virtual', color: '#38D9A9' },
+  { title: 'Global Networking Day', date: 'May 20 · 9:00 AM', mode: 'Live', color: '#FB923C' },
+  { title: 'Product Management Panel', date: 'Jun 12 · 6:30 PM', mode: 'Virtual', color: '#C8FA5F' },
+  { title: 'Summer Reunion Social', date: 'Jul 04 · 4:00 PM', mode: 'In-Person', color: '#A78BFA' }
 ];
 
 /* ─── Navbar ───────────────────────────────────────────────────────── */
@@ -277,7 +281,7 @@ function HeroVisual() {
         </div>
 
         {/* Right Column: Events scrolling DOWN */}
-        <div className="relative h-full overflow-hidden flex flex-col justify-end">
+        <div className="relative h-full overflow-hidden flex flex-col">
           <motion.div
             initial={{ y: "-50%" }}
             animate={{ y: "0%" }}
