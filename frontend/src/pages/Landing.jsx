@@ -259,7 +259,7 @@ function HeroVisual() {
       <GradientGlow size="lg" className="top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30" />
 
       {/* Side-by-side marquee layout */}
-      <div className="relative z-10 grid grid-cols-2 gap-4 h-full px-6 py-10 overflow-hidden">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-4 h-full px-6 py-10 overflow-hidden">
         {/* Left Column: Alumni scrolling UP */}
         <div className="relative h-full overflow-hidden flex flex-col">
           <motion.div
@@ -281,7 +281,7 @@ function HeroVisual() {
         </div>
 
         {/* Right Column: Events scrolling DOWN */}
-        <div className="relative h-full overflow-hidden flex flex-col">
+        <div className="relative h-full overflow-hidden hidden md:flex flex-col">
           <motion.div
             initial={{ y: "-50%" }}
             animate={{ y: "0%" }}
