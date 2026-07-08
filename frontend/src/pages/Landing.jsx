@@ -335,7 +335,7 @@ export default function LandingPage() {
         <GradientGlow size="xl" className="-top-40 -left-40 opacity-60" />
         <GradientGlow size="lg" className="top-1/2 right-0 translate-x-1/2 opacity-30" />
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full py-16 md:py-20 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full pt-8 pb-16 md:py-20 lg:py-24">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: text */}
             <motion.div
