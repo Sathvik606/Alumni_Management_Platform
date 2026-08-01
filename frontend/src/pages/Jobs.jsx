@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { jobService } from '@/services/jobService';
+import { referralService } from '@/services/referralService';
 import useAuthStore from '@/store/authStore';
-import { Briefcase, ExternalLink, MapPin, Pencil, Trash2, Building2, ChevronLeft, ChevronRight, Download, Plus, X } from 'lucide-react';
+import { Briefcase, ExternalLink, MapPin, Pencil, Trash2, Building2, ChevronLeft, ChevronRight, Download, Plus, X, Send, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '@/components/ui/combobox';
 import { toast } from 'sonner';
 import { exportJobs } from '@/utils/exportUtils';
@@ -56,6 +57,61 @@ export default function JobsPage() {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, title: '' });
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Referral states
+  const [activeTab, setActiveTab] = useState('explore'); // 'explore' or 'referrals'
+  const [referralsReceived, setReferralsReceived] = useState([]);
+  const [referralsSent, setReferralsSent] = useState([]);
+  const [referralModal, setReferralModal] = useState({ open: false, job: null, resumeLink: '', message: '' });
+  const [referralNotesModal, setReferralNotesModal] = useState({ open: false, referral: null, status: 'approved', notes: '' });
+
+  const fetchReferrals = async () => {
+    try {
+      const [sent, received] = await Promise.all([
+        referralService.listMyRequests(),
+        referralService.listForMe()
+      ]);
+      setReferralsSent(sent);
+      setReferralsReceived(received);
+    } catch (err) {
+      console.error('Failed to load referrals', err);
+    }
+  };
+
+  const handleReferralRequest = async (e) => {
+    e.preventDefault();
+    if (!referralModal.resumeLink || !referralModal.message) {
+      toast.error('Validation error', { description: 'All fields are required' });
+      return;
+    }
+    try {
+      await referralService.submit({
+        jobId: referralModal.job._id,
+        resumeLink: referralModal.resumeLink,
+        message: referralModal.message
+      });
+      toast.success('Referral request sent!', { description: `Your request has been submitted to the job poster.` });
+      setReferralModal({ open: false, job: null, resumeLink: '', message: '' });
+    } catch (err) {
+      toast.error('Failed to submit request', { description: err.response?.data?.message || 'Something went wrong' });
+    }
+  };
+
+  const handleUpdateReferralStatus = async (e) => {
+    e.preventDefault();
+    try {
+      await referralService.updateStatus(
+        referralNotesModal.referral._id,
+        referralNotesModal.status,
+        referralNotesModal.notes
+      );
+      toast.success('Referral updated!', { description: `Referral status marked as ${referralNotesModal.status}.` });
+      setReferralNotesModal({ open: false, referral: null, status: 'approved', notes: '' });
+      fetchReferrals();
+    } catch (err) {
+      toast.error('Failed to update referral', { description: err.response?.data?.message || 'Something went wrong' });
+    }
+  };
 
   const totalPages = Math.ceil(jobs.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -153,25 +209,58 @@ export default function JobsPage() {
         title="Career Opportunities"
         subtitle="Post and discover job openings shared by alumni."
       >
-        <button
-          onClick={() => { exportJobs(jobs); toast.success('Export started', { description: 'Downloading jobs as CSV...' }); }}
-          disabled={jobs.length === 0}
-          className="h-9 px-3.5 rounded-xl border border-white/[0.1] bg-white/[0.03] text-xs font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export CSV
-        </button>
-        <button
-          onClick={() => setShowCreateForm((v) => !v)}
-          className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5"
-        >
-          {showCreateForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-          {showCreateForm ? 'Cancel' : 'Post a Job'}
-        </button>
+        {activeTab === 'explore' && (
+          <>
+            <button
+              onClick={() => { exportJobs(jobs); toast.success('Export started', { description: 'Downloading jobs as CSV...' }); }}
+              disabled={jobs.length === 0}
+              className="h-9 px-3.5 rounded-xl border border-white/[0.1] bg-white/[0.03] text-xs font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </button>
+            {user?.role !== 'student' && (
+              <button
+                onClick={() => setShowCreateForm((v) => !v)}
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5"
+              >
+                {showCreateForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {showCreateForm ? 'Cancel' : 'Post a Job'}
+              </button>
+            )}
+          </>
+        )}
       </PageHeader>
 
+      {/* Tab Selector */}
+      <div className="flex gap-2 border-b border-white/[0.06] pb-px">
+        <button
+          onClick={() => setActiveTab('explore')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'explore'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Explore Jobs
+        </button>
+        <button
+          onClick={() => { setActiveTab('referrals'); fetchReferrals(); }}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'referrals'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Referrals Center
+        </button>
+      </div>
+
+      {activeTab === 'explore' && (
+        <>
+
       {/* Create Form */}
-      {showCreateForm && (
+      {showCreateForm && user?.role !== 'student' && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,6 +409,15 @@ export default function JobsPage() {
                           <ExternalLink className="h-3 w-3" />
                           Apply Now
                         </button>
+                        {user?._id !== (job.postedBy?._id || job.postedBy) && (
+                          <button
+                            onClick={() => setReferralModal({ open: true, job, resumeLink: '', message: '' })}
+                            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl border border-primary/20 bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-all"
+                          >
+                            <Send className="h-3 w-3" />
+                            Request Referral
+                          </button>
+                        )}
                         {canEdit && (
                           <>
                             <button
@@ -367,6 +465,7 @@ export default function JobsPage() {
           )}
         </div>
       )}
+    </>)}
 
       {/* Edit Modal */}
       {modal.open && modal.record && (
@@ -441,6 +540,216 @@ export default function JobsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Referrals Center view */}
+      {activeTab === 'referrals' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Incoming requests for Alumni */}
+          {user?.role !== 'student' && (
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">Referral Requests Received</p>
+              {referralsReceived.length === 0 ? (
+                <EmptyState icon={FileText} title="No referral requests received" description="Referral requests for jobs you post will appear here." />
+              ) : (
+                <div className="space-y-3">
+                  {referralsReceived.map((ref) => (
+                    <div key={ref._id} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-semibold text-foreground">{ref.studentId?.name || 'Student'}</h4>
+                          <p className="text-xs text-muted-foreground">{ref.studentId?.department} · Class of {ref.studentId?.graduationYear}</p>
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                          ref.status === 'approved' ? 'bg-primary/15 text-primary border-primary/25' :
+                          ref.status === 'rejected' ? 'bg-destructive/15 text-destructive border-destructive/25' :
+                          'bg-white/5 text-muted-foreground border-white/10'
+                        }`}>
+                          {ref.status}
+                        </span>
+                      </div>
+                      <div className="p-3.5 rounded-xl bg-black/10 border border-white/[0.04] text-xs text-muted-foreground leading-relaxed">
+                        <strong className="text-foreground block mb-1">Applied for: {ref.jobId?.title} at {ref.jobId?.company}</strong>
+                        "{ref.message}"
+                      </div>
+                      {ref.notes && (
+                        <p className="text-xs text-muted-foreground"><strong className="text-foreground">Your Notes:</strong> {ref.notes}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          onClick={() => window.open(ref.resumeLink, '_blank')}
+                          className="inline-flex items-center gap-1 h-8 px-3 rounded-xl border border-white/[0.1] bg-white/[0.03] text-xs text-muted-foreground hover:bg-white/[0.07] transition-all"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Resume
+                        </button>
+                        {ref.status === 'pending' && (
+                          <button
+                            onClick={() => setReferralNotesModal({ open: true, referral: ref, status: 'approved', notes: '' })}
+                            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl bg-primary text-[#0D1000] text-xs font-semibold hover:bg-primary/95 transition-all"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Approve Referral
+                          </button>
+                        )}
+                        {ref.status === 'pending' && (
+                          <button
+                            onClick={() => setReferralNotesModal({ open: true, referral: ref, status: 'rejected', notes: '' })}
+                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-destructive/25 bg-destructive/5 text-xs text-destructive hover:bg-destructive/10 transition-all"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Decline
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sent requests (Students/Alumni) */}
+          <div className="space-y-3 pt-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Your Sent Referral Requests</p>
+            {referralsSent.length === 0 ? (
+              <EmptyState icon={Send} title="No referral requests sent" description="Explore jobs and request referrals to find opportunities." />
+            ) : (
+              <div className="space-y-3">
+                {referralsSent.map((ref) => (
+                  <div key={ref._id} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">{ref.jobId?.title || 'Job Opening'}</h4>
+                        <p className="text-xs text-muted-foreground">{ref.jobId?.company} · {ref.jobId?.location}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        ref.status === 'approved' ? 'bg-primary/15 text-primary border-primary/25' :
+                        ref.status === 'rejected' ? 'bg-destructive/15 text-destructive border-destructive/25' :
+                        'bg-white/5 text-muted-foreground border-white/10'
+                      }`}>
+                        {ref.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p><strong className="text-foreground">Referrer:</strong> {ref.alumniId?.name || 'Alumnus'} ({ref.alumniId?.email})</p>
+                      <p><strong className="text-foreground">Your Message:</strong> "{ref.message}"</p>
+                      {ref.notes && (
+                        <p className="p-3.5 mt-2 rounded-xl bg-black/10 border border-white/[0.04] text-xs text-muted-foreground">
+                          <strong className="text-foreground block mb-0.5">Referrer Feedback:</strong>
+                          "{ref.notes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Request Referral Modal */}
+      {referralModal.open && referralModal.job && (
+        <Dialog open={referralModal.open} onOpenChange={(open) => !open && setReferralModal({ open: false, job: null, resumeLink: '', message: '' })}>
+          <DialogContent className="border-white/[0.08] bg-[#1C1D21] max-w-md w-full rounded-2xl p-6">
+            <DialogHeader>
+              <DialogTitle>Request Referral</DialogTitle>
+              <DialogDescription className="text-muted-foreground font-medium">
+                Request a referral for <strong>{referralModal.job.title}</strong> at <strong>{referralModal.job.company}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleReferralRequest} className="space-y-4 mt-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="resume-link" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Resume / Portfolio Link *
+                </Label>
+                <Input
+                  id="resume-link"
+                  required
+                  type="url"
+                  placeholder="https://drive.google.com/file/d/..."
+                  value={referralModal.resumeLink}
+                  onChange={(e) => setReferralModal((p) => ({ ...p, resumeLink: e.target.value }))}
+                  className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="referral-msg" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Short Pitch / Note *
+                </Label>
+                <textarea
+                  id="referral-msg"
+                  required
+                  rows={4}
+                  placeholder="Explain why you are a good fit for this role and why they should refer you..."
+                  value={referralModal.message}
+                  onChange={(e) => setReferralModal((p) => ({ ...p, message: e.target.value }))}
+                  className="w-full p-3 bg-white/[0.04] border border-white/[0.1] text-foreground text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl outline-none"
+                />
+              </div>
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReferralModal({ open: false, job: null, resumeLink: '', message: '' })}
+                  className="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-sm text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+                >
+                  Send Request
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Referral Notes / Feedback update Modal */}
+      {referralNotesModal.open && referralNotesModal.referral && (
+        <Dialog open={referralNotesModal.open} onOpenChange={(open) => !open && setReferralNotesModal({ open: false, referral: null, status: 'approved', notes: '' })}>
+          <DialogContent className="border-white/[0.08] bg-[#1C1D21] max-w-md w-full rounded-2xl p-6">
+            <DialogHeader>
+              <DialogTitle>Referral Decision</DialogTitle>
+              <DialogDescription className="text-muted-foreground font-medium">
+                Decision: <strong className="capitalize text-foreground">{referralNotesModal.status}</strong> for {referralNotesModal.referral.studentId?.name}.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateReferralStatus} className="space-y-4 mt-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="referral-notes" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Feedback Notes / Tips (Optional)
+                </Label>
+                <textarea
+                  id="referral-notes"
+                  rows={4}
+                  placeholder="Provide tips, next steps, or reasons for your decision..."
+                  value={referralNotesModal.notes}
+                  onChange={(e) => setReferralNotesModal((p) => ({ ...p, notes: e.target.value }))}
+                  className="w-full p-3 bg-white/[0.04] border border-white/[0.1] text-foreground text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl outline-none"
+                />
+              </div>
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReferralNotesModal({ open: false, referral: null, status: 'approved', notes: '' })}
+                  className="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-sm text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+                >
+                  Confirm Decision
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

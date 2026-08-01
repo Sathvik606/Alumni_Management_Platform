@@ -10,7 +10,7 @@ import GradientGlow from '@/components/ui/GradientGlow';
 
 export default function RegisterPage() {
   const { register, loading } = useAuthStore();
-  const [form, setForm] = useState({ name: '', email: '', password: '', graduationYear: '', department: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', graduationYear: '', department: '', role: 'student' });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -93,6 +93,35 @@ export default function RegisterPage() {
           </div>
 
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
+            {/* Account Type */}
+            <div className="sm:col-span-2 space-y-2">
+              <Label className={labelClass}>I am a...</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, role: 'student' }))}
+                  className={`h-11 rounded-xl border text-sm font-semibold transition-all ${
+                    form.role === 'student'
+                      ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/5'
+                      : 'border-white/[0.1] bg-white/[0.03] text-muted-foreground hover:bg-white/[0.05]'
+                  }`}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, role: 'alumni' }))}
+                  className={`h-11 rounded-xl border text-sm font-semibold transition-all ${
+                    form.role === 'alumni'
+                      ? 'border-primary bg-primary/10 text-primary shadow-lg shadow-primary/5'
+                      : 'border-white/[0.1] bg-white/[0.03] text-muted-foreground hover:bg-white/[0.05]'
+                  }`}
+                >
+                  Alumnus
+                </button>
+              </div>
+            </div>
+
             {/* Full Name */}
             <div className="sm:col-span-2 space-y-2">
               <Label htmlFor="name" className={labelClass}>Full Name</Label>

@@ -9,6 +9,8 @@ import AlumniPage from './pages/Alumni';
 import EventsPage from './pages/Events';
 import JobsPage from './pages/Jobs';
 import ProfilePage from './pages/Profile';
+import MentorshipPage from './pages/Mentorship';
+import ScholarshipsPage from './pages/Scholarships';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
@@ -47,6 +49,8 @@ function App() {
                   <Route path="alumni" element={<AlumniPage />} />
                   <Route path="events" element={<EventsPage />} />
                   <Route path="jobs" element={<JobsPage />} />
+                  <Route path="mentorship" element={<MentorshipPage />} />
+                  <Route path="scholarships" element={<ScholarshipsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>

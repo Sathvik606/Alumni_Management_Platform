@@ -6,16 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { alumniService } from '@/services/alumniService';
+import { mentorshipService } from '@/services/mentorshipService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Pencil, Trash2, User, ChevronLeft, ChevronRight, Download, Shield, ShieldCheck, Search, X } from 'lucide-react';
+import { Users, Pencil, Trash2, User, ChevronLeft, ChevronRight, Download, Shield, ShieldCheck, Search, X, MessageSquare, MapPin, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { exportAlumni } from '@/utils/exportUtils';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 
-const filterDefaults = { name: '', department: '', graduationYear: '' };
+const filterDefaults = { name: '', department: '', graduationYear: '', isMentor: '' };
 const ITEMS_PER_PAGE = 20;
 
 function AlumniAvatar({ item, size = 'md' }) {
@@ -46,17 +47,103 @@ function AlumniAvatar({ item, size = 'md' }) {
 
 function RoleBadge({ role }) {
   const isAdmin = role === 'admin';
+  const isStudent = role === 'student';
   return (
     <span
       className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 ${
         isAdmin
           ? 'bg-primary/10 text-primary border border-primary/20'
+          : isStudent
+          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
           : 'bg-white/[0.06] text-muted-foreground border border-white/10'
       }`}
     >
       {isAdmin ? <ShieldCheck className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
-      {isAdmin ? 'Admin' : 'Alumni'}
+      {isAdmin ? 'Admin' : isStudent ? 'Student' : 'Alumni'}
     </span>
+  );
+}
+
+function AlumniCard({ item, user, onBook, onEdit, onDelete, onRoleChange, isAdmin }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group relative flex flex-col justify-between rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 overflow-hidden hover:border-white/[0.14] hover:bg-white/[0.04] transition-all duration-200"
+    >
+      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      
+      <div>
+        <div className="flex items-start gap-4">
+          <AlumniAvatar item={item} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{item.name}</h3>
+              {item.isMentor && (
+                <span className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">
+                  Mentor
+                </span>
+              )}
+            </div>
+            {item.currentJobTitle && (
+              <p className="text-xs text-foreground/80 mt-0.5 font-medium truncate">
+                {item.currentJobTitle} {item.company ? `at ${item.company}` : ''}
+              </p>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {item.department || 'General'} • Class of {item.graduationYear || '—'}
+            </p>
+          </div>
+        </div>
+
+        {item.bio && (
+          <p className="text-xs text-muted-foreground/85 line-clamp-2 mt-4 leading-relaxed italic bg-white/[0.015] border border-white/[0.03] rounded-lg p-2">
+            "{item.bio}"
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/[0.06] mt-4 pt-4">
+        {item.location ? (
+          <p className="text-[11px] text-muted-foreground/60 flex items-center gap-1 truncate">
+            <MapPin className="h-3 w-3" />
+            {item.location}
+          </p>
+        ) : <div />}
+
+        <div className="flex items-center gap-2">
+          {item.linkedin && (
+            <a
+              href={item.linkedin.startsWith('http') ? item.linkedin : `https://${item.linkedin}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
+              aria-label="LinkedIn profile"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          )}
+          {item.isMentor && item._id !== user?._id && (
+            <button
+              onClick={() => onBook(item)}
+              className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 transition-all flex items-center gap-1"
+            >
+              <MessageSquare className="h-3 w-3" />
+              Book Session
+            </button>
+          )}
+          {(isAdmin || item._id === user?._id) && (
+            <button
+              onClick={() => onEdit(item)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all"
+              aria-label="Edit Profile"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -68,12 +155,40 @@ export default function AlumniPage() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState({ open: false, record: null });
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
+  const [mentorshipModal, setMentorshipModal] = useState({ open: false, mentor: null, topic: '', message: '' });
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('alumni');
   const isAdmin = user?.role === 'admin';
 
-  const totalPages = Math.ceil(alumni.length / ITEMS_PER_PAGE);
+  const handleMentorshipRequest = async (e) => {
+    e.preventDefault();
+    if (!mentorshipModal.topic || !mentorshipModal.message) {
+      toast.error('Validation error', { description: 'All fields are required.' });
+      return;
+    }
+    try {
+      await mentorshipService.requestSession({
+        mentorId: mentorshipModal.mentor._id,
+        topic: mentorshipModal.topic,
+        message: mentorshipModal.message
+      });
+      toast.success('Mentorship requested!', { description: `Your request has been sent to ${mentorshipModal.mentor.name}.` });
+      setMentorshipModal({ open: false, mentor: null, topic: '', message: '' });
+    } catch (err) {
+      toast.error('Failed to request mentorship', { description: err.response?.data?.message || 'Something went wrong' });
+    }
+  };
+
+  const displayList = alumni.filter((item) => {
+    if (activeTab === 'students') {
+      return item.role === 'student';
+    }
+    return item.role !== 'student';
+  });
+
+  const totalPages = Math.ceil(displayList.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedAlumni = alumni.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedDisplay = displayList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const goToPage = (page) => setCurrentPage(Math.max(1, Math.min(page, totalPages)));
 
@@ -148,7 +263,8 @@ export default function AlumniPage() {
   };
 
   const handleRoleChange = async (id, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'alumni' : 'admin';
+    // Cycle: alumni → admin → alumni; student stays unless changed
+    const newRole = currentRole === 'admin' ? 'alumni' : currentRole === 'student' ? 'alumni' : 'admin';
     try {
       const updated = await alumniService.updateRole(id, newRole);
       setAlumni((prev) => prev.map((a) => (a._id === updated._id ? updated : a)));
@@ -184,7 +300,7 @@ export default function AlumniPage() {
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold mb-3">
           Filter Directory
         </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-1.5">
             <Label htmlFor="filter-name" className="text-xs text-muted-foreground">Name</Label>
             <div className="relative">
@@ -218,6 +334,17 @@ export default function AlumniPage() {
               className={inputClass}
             />
           </div>
+          <div className="space-y-1.5 flex items-center h-full pt-6">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-muted-foreground hover:text-foreground transition-all">
+              <input
+                type="checkbox"
+                checked={filters.isMentor === 'true'}
+                onChange={(e) => onFilterChange('isMentor', e.target.checked ? 'true' : '')}
+                className="h-4 w-4 rounded border-white/[0.1] bg-white/[0.04] text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+              />
+              Mentors Only
+            </label>
+          </div>
           <div className="flex items-end gap-2">
             <button
               onClick={fetchAlumni}
@@ -235,176 +362,236 @@ export default function AlumniPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden">
-        {/* Table header row */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
-          <p className="text-sm font-semibold">
-            {loading ? 'Loading…' : `${alumni.length} Alumni`}
-          </p>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-white/[0.08] pb-px">
+        <button
+          onClick={() => { setActiveTab('alumni'); setCurrentPage(1); }}
+          className={`pb-3 text-sm font-semibold border-b-2 px-1 transition-all ${
+            activeTab === 'alumni'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Alumni Directory
+        </button>
+        <button
+          onClick={() => { setActiveTab('students'); setCurrentPage(1); }}
+          className={`pb-3 text-sm font-semibold border-b-2 px-1 transition-all ${
+            activeTab === 'students'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Student Directory
+        </button>
+      </div>
 
+      {/* Content Container */}
+      <div>
         {error && (
-          <p className="text-sm text-destructive bg-destructive/10 m-4 px-4 py-3 rounded-xl border border-destructive/20" role="alert">
+          <p className="text-sm text-destructive bg-destructive/10 my-4 px-4 py-3 rounded-xl border border-destructive/20" role="alert">
             {error}
           </p>
         )}
 
         {loading ? (
-          <div className="p-4 space-y-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 py-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 rounded-xl bg-white/[0.04]" />
+              <Skeleton key={i} className="h-44 rounded-2xl bg-white/[0.04]" />
             ))}
           </div>
-        ) : alumni.length === 0 ? (
+        ) : displayList.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No alumni found"
+            title={activeTab === 'students' ? "No students found" : "No alumni found"}
             description="Try adjusting your filters or reset to see all profiles."
             ctaLabel="Reset Filters"
             onCta={handleReset}
-            className="m-4 border-white/[0.06]"
+            className="my-4 border-white/[0.06]"
           />
+        ) : user?.role === 'student' ? (
+          /* Card Grid View (Premium layout for Student users) */
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 py-4">
+            {paginatedDisplay.map((item) => (
+              <AlumniCard
+                key={item._id}
+                item={item}
+                user={user}
+                onBook={(mentor) => setMentorshipModal({ open: true, mentor, topic: '', message: '' })}
+                onEdit={(record) => setModal({ open: true, record })}
+                isAdmin={isAdmin}
+              />
+            ))}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02]">
-                    Alumni
-                  </th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden sm:table-cell">
-                    Department
-                  </th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden md:table-cell">
-                    Year
-                  </th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden lg:table-cell">
-                    Company
-                  </th>
-                  {isAdmin && (
-                    <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden xl:table-cell">
-                      Role
+          /* Table View (Administrative layout for Alumni/Admins) */
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.015] overflow-hidden mt-4">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-white/[0.02]">
+              <p className="text-sm font-semibold">
+                {activeTab === 'students' ? `${displayList.length} Students` : `${displayList.length} Alumni`}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/[0.06]">
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02]">
+                      Name
                     </th>
-                  )}
-                  <th className="text-right px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedAlumni.map((item) => (
-                  <tr
-                    key={item._id}
-                    className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <AlumniAvatar item={item} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
-                          {item.location && (
-                            <p className="text-[11px] text-muted-foreground truncate">{item.location}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell">
-                      <span className="text-sm text-muted-foreground">{item.department || '—'}</span>
-                    </td>
-                    <td className="px-5 py-3.5 hidden md:table-cell">
-                      <span className="text-sm text-muted-foreground">{item.graduationYear || '—'}</span>
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      <span className="text-sm text-muted-foreground">{item.company || '—'}</span>
-                    </td>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden sm:table-cell">
+                      Department
+                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden md:table-cell">
+                      Year
+                    </th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden lg:table-cell">
+                      Company
+                    </th>
                     {isAdmin && (
-                      <td className="px-5 py-3.5 hidden xl:table-cell">
-                        <RoleBadge role={item.role} />
-                      </td>
+                      <th className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02] hidden xl:table-cell">
+                        Role
+                      </th>
                     )}
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <TooltipProvider>
-                          {isAdmin && item._id !== user?._id && (
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60 bg-white/[0.02]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedDisplay.map((item) => (
+                    <tr
+                      key={item._id}
+                      className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <AlumniAvatar item={item} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
+                              {item.isMentor && (
+                                <span className="text-[9px] font-bold text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                  Mentor
+                                </span>
+                              )}
+                            </div>
+                            {item.location && (
+                              <p className="text-[11px] text-muted-foreground truncate">{item.location}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden sm:table-cell">
+                        <span className="text-sm text-muted-foreground">{item.department || '—'}</span>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell">
+                        <span className="text-sm text-muted-foreground">{item.graduationYear || '—'}</span>
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <span className="text-sm text-muted-foreground">{item.company || '—'}</span>
+                      </td>
+                      {isAdmin && (
+                        <td className="px-5 py-3.5 hidden xl:table-cell">
+                          <RoleBadge role={item.role} />
+                        </td>
+                      )}
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <TooltipProvider>
+                            {isAdmin && item._id !== user?._id && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleRoleChange(item._id, item.role)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                                    aria-label={`Change ${item.name}'s role`}
+                                  >
+                                    <Shield className="h-3.5 w-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                              <TooltipContent>Change role to {item.role === 'admin' ? 'alumni' : item.role === 'student' ? 'alumni' : 'admin'}</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {item.isMentor && item._id !== user?._id && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => setMentorshipModal({ open: true, mentor: item, topic: '', message: '' })}
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all animate-pulse"
+                                    aria-label={`Book 1-on-1 session with ${item.name}`}
+                                  >
+                                    <MessageSquare className="h-3.5 w-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Book 1-on-1 Session</TooltipContent>
+                              </Tooltip>
+                            )}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={() => handleRoleChange(item._id, item.role)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
-                                  aria-label={`Change ${item.name}'s role`}
+                                  onClick={() => setModal({ open: true, record: item })}
+                                  disabled={!isAdmin && item._id !== user?._id}
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                  aria-label={`Edit ${item.name}'s profile`}
                                 >
-                                  <Shield className="h-3.5 w-3.5" />
+                                  <Pencil className="h-3.5 w-3.5" />
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent>Change role to {item.role === 'admin' ? 'alumni' : 'admin'}</TooltipContent>
+                              <TooltipContent>Edit profile</TooltipContent>
                             </Tooltip>
-                          )}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => setModal({ open: true, record: item })}
-                                disabled={!isAdmin && item._id !== user?._id}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                aria-label={`Edit ${item.name}'s profile`}
+                            {isAdmin && (
+                              <AlertDialog
+                                open={deleteDialog.open && deleteDialog.id === item._id}
+                                onOpenChange={(open) => setDeleteDialog({ open, id: open ? item._id : null })}
                               >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit profile</TooltipContent>
-                          </Tooltip>
-                          {isAdmin && (
-                            <AlertDialog
-                              open={deleteDialog.open && deleteDialog.id === item._id}
-                              onOpenChange={(open) => setDeleteDialog({ open, id: open ? item._id : null })}
-                            >
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <AlertDialogTrigger asChild>
-                                    <button
-                                      className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                                      aria-label={`Delete ${item.name}'s profile`}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                                        aria-label={`Delete ${item.name}'s profile`}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </AlertDialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete profile</TooltipContent>
+                                </Tooltip>
+                                <AlertDialogContent className="border-white/[0.08] bg-[#1C1D21]">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete alumni profile?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-muted-foreground">
+                                      This will permanently remove <strong className="text-foreground">{item.name}</strong>'s profile. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="border-white/[0.1] bg-white/[0.03]">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(item._id)}
+                                      className="bg-destructive text-white hover:bg-destructive/90"
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </AlertDialogTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent>Delete profile</TooltipContent>
-                              </Tooltip>
-                              <AlertDialogContent className="border-white/[0.08] bg-[#1C1D21]">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete alumni profile?</AlertDialogTitle>
-                                  <AlertDialogDescription className="text-muted-foreground">
-                                    This will permanently remove <strong className="text-foreground">{item.name}</strong>'s profile. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="border-white/[0.1] bg-white/[0.03]">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(item._id)}
-                                    className="bg-destructive text-white hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </TooltipProvider>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </TooltipProvider>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* Pagination */}
-        {!loading && alumni.length > ITEMS_PER_PAGE && (
-          <nav className="flex items-center justify-between px-5 py-3.5 border-t border-white/[0.06] bg-white/[0.02]" aria-label="Alumni pagination">
+        {!loading && displayList.length > ITEMS_PER_PAGE && (
+          <nav className="flex items-center justify-between px-5 py-3.5 border border-white/[0.07] bg-white/[0.015] rounded-xl mt-4" aria-label="Alumni pagination">
             <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
-              Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, alumni.length)} of {alumni.length}
+              Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, displayList.length)} of {displayList.length}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -473,6 +660,29 @@ export default function AlumniPage() {
                   className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
                 />
               </div>
+              {modal.record.role !== 'student' && (
+                <div className="sm:col-span-2 pt-2 border-t border-white/[0.06] space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Mentorship</p>
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={modal.record.isMentor || false}
+                      onChange={(e) => setModal((p) => ({ ...p, record: { ...p.record, isMentor: e.target.checked } }))}
+                      className="h-4 w-4 rounded border-white/[0.1] bg-white/[0.04] accent-primary cursor-pointer"
+                    />
+                    <span className="text-sm text-foreground font-medium">Available as Mentor (Open for student bookings)</span>
+                  </label>
+                  {modal.record.isMentor && (
+                    <Input
+                      placeholder="Mentorship topics / expertise areas"
+                      maxLength={200}
+                      value={modal.record.mentorshipTopic || ''}
+                      onChange={(e) => setModal((p) => ({ ...p, record: { ...p.record, mentorshipTopic: e.target.value } }))}
+                      className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                    />
+                  )}
+                </div>
+              )}
             </div>
             <DialogFooter>
               <button
@@ -491,6 +701,64 @@ export default function AlumniPage() {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Mentorship Booking Modal */}
+      {mentorshipModal.open && mentorshipModal.mentor && (
+        <Dialog open={mentorshipModal.open} onOpenChange={(open) => !open && setMentorshipModal({ open: false, mentor: null, topic: '', message: '' })}>
+          <DialogContent className="border-white/[0.08] bg-[#1C1D21] max-w-md w-full rounded-2xl p-6">
+            <DialogHeader>
+              <DialogTitle>Book 1-on-1 Session</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Send a session booking request to <strong>{mentorshipModal.mentor.name}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleMentorshipRequest} className="space-y-4 mt-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="mentorship-topic" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Topic of Discussion *
+                </Label>
+                <Input
+                  id="mentorship-topic"
+                  required
+                  placeholder="e.g. Frontend Career Advice, Mock Interview"
+                  value={mentorshipModal.topic}
+                  onChange={(e) => setMentorshipModal((p) => ({ ...p, topic: e.target.value }))}
+                  className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="mentorship-msg" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Your Message *
+                </Label>
+                <textarea
+                  id="mentorship-msg"
+                  required
+                  rows={4}
+                  placeholder="Introduce yourself and list some questions or slots you are available..."
+                  value={mentorshipModal.message}
+                  onChange={(e) => setMentorshipModal((p) => ({ ...p, message: e.target.value }))}
+                  className="w-full p-3 bg-white/[0.04] border border-white/[0.1] text-foreground text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl outline-none"
+                />
+              </div>
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMentorshipModal({ open: false, mentor: null, topic: '', message: '' })}
+                  className="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-sm text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+                >
+                  Send Request
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

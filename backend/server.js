@@ -100,11 +100,18 @@ const alumniRoutes = require('./routes/alumniRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const donationRoutes = require('./routes/donationRoutes');
+const referralRoutes = require('./routes/referralRoutes');
+const mentorshipRoutes = require('./routes/mentorshipRoutes');
+const scholarshipRoutes = require('./routes/scholarshipRoutes');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/alumni', alumniRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/referrals', referralRoutes);
+app.use('/api/mentorship', mentorshipRoutes);
+app.use('/api/scholarships', scholarshipRoutes);
 
 // Test Route
 app.get('/', (req, res) => {

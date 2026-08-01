@@ -24,8 +24,15 @@ const AlumniSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['alumni', 'admin'],
+    enum: ['alumni', 'student', 'admin'],
     default: 'alumni'
+  },
+  isMentor: {
+    type: Boolean,
+    default: false
+  },
+  mentorshipTopic: {
+    type: String
   },
   graduationYear: {
     type: Number

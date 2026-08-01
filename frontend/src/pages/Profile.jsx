@@ -280,6 +280,37 @@ export default function ProfilePage() {
                   className="bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl" />
               </div>
 
+              {form.role !== 'student' && (
+                <div className="pt-4 border-t border-white/[0.06] space-y-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Mentorship Preference</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="profile-ismentor"
+                      checked={form.isMentor || false}
+                      onChange={(e) => setForm((p) => ({ ...p, isMentor: e.target.checked }))}
+                      className="h-4 w-4 rounded border-white/[0.1] bg-white/[0.04] text-primary focus:ring-primary/20 accent-primary cursor-pointer"
+                    />
+                    <Label htmlFor="profile-ismentor" className="text-sm text-foreground cursor-pointer font-medium select-none">
+                      Available for 1-on-1 Mentorship (Open to Student Requests)
+                    </Label>
+                  </div>
+                  {form.isMentor && (
+                    <div className="space-y-1.5 animate-in fade-in duration-200">
+                      <Label htmlFor="profile-mentorshiptopic" className={labelClass}>Mentorship Topics / Expertise</Label>
+                      <Input
+                        id="profile-mentorshiptopic"
+                        maxLength={200}
+                        placeholder="e.g. System Design, Resume Reviews, Interview Prep"
+                        value={form.mentorshipTopic || ''}
+                        onChange={(e) => setForm((p) => ({ ...p, mentorshipTopic: e.target.value }))}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {error && <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2" role="alert">{error}</p>}
 
               <div className="pt-2 flex justify-end">

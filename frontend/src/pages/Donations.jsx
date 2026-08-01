@@ -3,13 +3,14 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, ComboboxEmpty } from '@/components/ui/combobox';
 import { donationService } from '@/services/donationService';
+import { scholarshipService } from '@/services/scholarshipService';
 import useAuthStore from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Gift, Pencil, Trash2, ChevronLeft, ChevronRight, Download, TrendingUp, Heart } from 'lucide-react';
+import { Gift, Pencil, Trash2, ChevronLeft, ChevronRight, Download, TrendingUp, Heart, GraduationCap, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { exportDonations } from '@/utils/exportUtils';
@@ -48,6 +49,66 @@ export default function DonationsPage() {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
   const [currentPage, setCurrentPage] = useState(1);
   const isAdmin = user?.role === 'admin';
+
+  // Scholarship support states
+  const [activeTab, setActiveTab] = useState('explore'); // 'explore' or 'scholarships'
+  const [scholarships, setScholarships] = useState([]);
+  const [myScholarships, setMyScholarships] = useState([]);
+  const [scholarshipModal, setScholarshipModal] = useState({ open: false, title: '', description: '', amountNeeded: '' });
+  const [fundModal, setFundModal] = useState({ open: false, scholarship: null, amount: '' });
+
+  const fetchScholarships = async () => {
+    try {
+      const all = await scholarshipService.listAll();
+      setScholarships(all);
+      if (user?.role === 'student') {
+        const mine = await scholarshipService.listMyRequests();
+        setMyScholarships(mine);
+      }
+    } catch (err) {
+      console.error('Failed to load scholarships', err);
+    }
+  };
+
+  const handleCreateScholarship = async (e) => {
+    e.preventDefault();
+    if (!scholarshipModal.title || !scholarshipModal.description || !scholarshipModal.amountNeeded) {
+      toast.error('Validation error', { description: 'All fields are required.' });
+      return;
+    }
+    try {
+      await scholarshipService.createRequest({
+        title: scholarshipModal.title,
+        description: scholarshipModal.description,
+        amountNeeded: Number(scholarshipModal.amountNeeded)
+      });
+      toast.success('Scholarship campaign launched!', { description: 'Your request is now open for sponsors.' });
+      setScholarshipModal({ open: false, title: '', description: '', amountNeeded: '' });
+      fetchScholarships();
+    } catch (err) {
+      toast.error('Failed to launch campaign', { description: err.response?.data?.message || 'Something went wrong' });
+    }
+  };
+
+  const handleFundScholarship = async (e) => {
+    e.preventDefault();
+    const fundAmount = Number(fundModal.amount);
+    if (isNaN(fundAmount) || fundAmount <= 0) {
+      toast.error('Validation error', { description: 'Please enter a valid amount' });
+      return;
+    }
+    try {
+      await scholarshipService.fundRequest(fundModal.scholarship._id, fundAmount);
+      toast.success('Campaign funded!', { description: `Successfully contributed ₹${fundAmount.toLocaleString()} to this student.` });
+      setFundModal({ open: false, scholarship: null, amount: '' });
+      fetchScholarships();
+      // Reload donations list to show the new donation
+      const data = await donationService.list();
+      setDonations(data);
+    } catch (err) {
+      toast.error('Funding failed', { description: err.response?.data?.message || 'Something went wrong' });
+    }
+  };
 
   const totalPages = Math.ceil(donations.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -169,15 +230,53 @@ export default function DonationsPage() {
         title="Track Contributions"
         subtitle={isAdmin ? 'All recorded donations across the alumni network.' : 'Your giving history and new contributions.'}
       >
-        <button
-          onClick={() => { exportDonations(donations); toast.success('Export started', { description: 'Downloading donations as CSV...' }); }}
-          disabled={donations.length === 0}
-          className="h-9 px-3.5 rounded-xl border border-white/[0.1] bg-white/[0.03] text-xs font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export CSV
-        </button>
+        {activeTab === 'explore' && (
+          <button
+            onClick={() => { exportDonations(donations); toast.success('Export started', { description: 'Downloading donations as CSV...' }); }}
+            disabled={donations.length === 0}
+            className="h-9 px-3.5 rounded-xl border border-white/[0.1] bg-white/[0.03] text-xs font-medium text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </button>
+        )}
+        {activeTab === 'scholarships' && user?.role === 'student' && (
+          <button
+            onClick={() => setScholarshipModal({ open: true, title: '', description: '', amountNeeded: '' })}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5 shadow-lg shadow-primary/10"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Request Support
+          </button>
+        )}
       </PageHeader>
+
+      {/* Tab Selector */}
+      <div className="flex gap-2 border-b border-white/[0.06] pb-px">
+        <button
+          onClick={() => setActiveTab('explore')}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'explore'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Giving Records
+        </button>
+        <button
+          onClick={() => { setActiveTab('scholarships'); fetchScholarships(); }}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-all ${
+            activeTab === 'scholarships'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Scholarship & Aid Requests
+        </button>
+      </div>
+
+      {activeTab === 'explore' && (
+        <>
 
       {/* Stats row */}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -199,11 +298,28 @@ export default function DonationsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Create Form */}
+        {/* Left Panel */}
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
-            <p className="text-sm font-semibold mb-5">Record a Donation</p>
-            <form className="space-y-4" onSubmit={handleSubmit}>
+          {user?.role === 'student' ? (
+            <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-5 space-y-3">
+              <div className="flex items-center gap-2 text-primary font-bold text-sm">
+                <GraduationCap className="h-4 w-4" />
+                <span>Student Assistance Hub</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                As a student, you can apply for academic financial aid and tuition sponsorships from verified alumni.
+              </p>
+              <button
+                onClick={() => { setActiveTab('scholarships'); fetchScholarships(); }}
+                className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-xs font-semibold inline-flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-all shadow-md shadow-primary/10"
+              >
+                Request Scholarship Aid
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
+              <p className="text-sm font-semibold mb-5">Record a Donation</p>
+              <form className="space-y-4" onSubmit={handleSubmit}>
               {/* Amount with presets */}
               <div className="space-y-1.5">
                 <Label className={labelClass}>Amount</Label>
@@ -304,6 +420,7 @@ export default function DonationsPage() {
               </button>
             </form>
           </div>
+          )}
         </div>
 
         {/* Records Table */}
@@ -423,6 +540,7 @@ export default function DonationsPage() {
           </div>
         </div>
       </div>
+    </>)}
 
       {/* Edit Modal (Admin) */}
       <Dialog open={modal.open} onOpenChange={(open) => setModal((p) => ({ ...p, open }))}>
@@ -484,6 +602,227 @@ export default function DonationsPage() {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Scholarship Support view */}
+      {activeTab === 'scholarships' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Active Campaigns */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-primary">Student Campaigns Open for Funding</p>
+            {scholarships.length === 0 ? (
+              <EmptyState icon={GraduationCap} title="No campaigns open" description="Students have not submitted financial assistance requests yet." />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {scholarships.map((sch) => {
+                  const raisedPercent = Math.min(100, Math.round((sch.amountRaised / sch.amountNeeded) * 100));
+                  return (
+                    <div key={sch._id} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 flex flex-col justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h4 className="text-sm font-semibold text-foreground">{sch.title}</h4>
+                            <p className="text-xs text-muted-foreground">Requested by {sch.studentId?.name} ({sch.studentId?.department})</p>
+                          </div>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            sch.status === 'funded' ? 'bg-primary/15 text-primary border-primary/25' :
+                            'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
+                          }`}>
+                            {sch.status === 'funded' ? 'Funded' : 'Open'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-3 font-medium leading-relaxed">
+                          "{sch.description}"
+                        </p>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-primary">₹{sch.amountRaised.toLocaleString()} raised</span>
+                          <span className="text-muted-foreground">Goal: ₹{sch.amountNeeded.toLocaleString()}</span>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
+                          <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${raisedPercent}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{raisedPercent}% Completed</span>
+                          {sch.status !== 'funded' && sch.studentId?._id !== user?._id && (
+                            <button
+                              onClick={() => setFundModal({ open: true, scholarship: sch, amount: String(sch.amountNeeded - sch.amountRaised) })}
+                              className="h-8 px-4 rounded-xl bg-primary text-[#0D1000] text-xs font-bold hover:bg-primary/95 hover:shadow-lg hover:shadow-primary/10 transition-all"
+                            >
+                              Sponsor Student
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Student's own campaigns */}
+          {user?.role === 'student' && (
+            <div className="space-y-3 pt-6 border-t border-white/[0.05]">
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">Your Funding Requests</p>
+              {myScholarships.length === 0 ? (
+                <EmptyState icon={Heart} title="No campaigns created" description="You can launch a fundraising request if you need support." />
+              ) : (
+                <div className="space-y-3">
+                  {myScholarships.map((sch) => {
+                    const raisedPercent = Math.min(100, Math.round((sch.amountRaised / sch.amountNeeded) * 100));
+                    return (
+                      <div key={sch._id} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-semibold text-foreground">{sch.title}</h4>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            sch.status === 'funded' ? 'bg-primary/15 text-primary border-primary/25' :
+                            'bg-yellow-400/10 text-yellow-400 border-yellow-400/20'
+                          }`}>
+                            {sch.status === 'funded' ? 'Funded' : 'Pending'}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-primary">₹{sch.amountRaised.toLocaleString()} raised</span>
+                            <span className="text-muted-foreground">Goal: ₹{sch.amountNeeded.toLocaleString()}</span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${raisedPercent}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scholarship Request Modal */}
+      {scholarshipModal.open && (
+        <Dialog open={scholarshipModal.open} onOpenChange={(open) => !open && setScholarshipModal({ open: false, title: '', description: '', amountNeeded: '' })}>
+          <DialogContent className="border-white/[0.08] bg-[#1C1D21] max-w-md w-full rounded-2xl p-6">
+            <DialogHeader>
+              <DialogTitle>Request Financial Aid</DialogTitle>
+              <DialogDescription className="text-muted-foreground font-medium">
+                Submit an academic assistance campaign. Alumni will see and fund this request.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateScholarship} className="space-y-4 mt-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="scholarship-title" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Campaign Title *
+                </Label>
+                <Input
+                  id="scholarship-title"
+                  required
+                  placeholder="e.g. Tuition Fees support for Final Semester"
+                  value={scholarshipModal.title}
+                  onChange={(e) => setScholarshipModal((p) => ({ ...p, title: e.target.value }))}
+                  className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="scholarship-amount" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Amount Needed (INR) *
+                </Label>
+                <Input
+                  id="scholarship-amount"
+                  required
+                  type="number"
+                  min={100}
+                  placeholder="e.g. 15000"
+                  value={scholarshipModal.amountNeeded}
+                  onChange={(e) => setScholarshipModal((p) => ({ ...p, amountNeeded: e.target.value }))}
+                  className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="scholarship-desc" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Describe Your Need *
+                </Label>
+                <textarea
+                  id="scholarship-desc"
+                  required
+                  rows={4}
+                  placeholder="Provide background context on your academic standing, tuition needs, and how these funds will be used..."
+                  value={scholarshipModal.description}
+                  onChange={(e) => setScholarshipModal((p) => ({ ...p, description: e.target.value }))}
+                  className="w-full p-3 bg-white/[0.04] border border-white/[0.1] text-foreground text-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl outline-none"
+                />
+              </div>
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScholarshipModal({ open: false, title: '', description: '', amountNeeded: '' })}
+                  className="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-sm text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+                >
+                  Launch Campaign
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Fund Scholarship campaign modal */}
+      {fundModal.open && fundModal.scholarship && (
+        <Dialog open={fundModal.open} onOpenChange={(open) => !open && setFundModal({ open: false, scholarship: null, amount: '' })}>
+          <DialogContent className="border-white/[0.08] bg-[#1C1D21] max-w-md w-full rounded-2xl p-6">
+            <DialogHeader>
+              <DialogTitle>Sponsor Student Campaign</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Enter your contribution amount to fund <strong>{fundModal.scholarship.studentId?.name}</strong>'s campaign: "{fundModal.scholarship.title}".
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleFundScholarship} className="space-y-4 mt-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="fund-amount" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Sponsorship Amount (INR) *
+                </Label>
+                <Input
+                  id="fund-amount"
+                  required
+                  type="number"
+                  min={10}
+                  max={fundModal.scholarship.amountNeeded - fundModal.scholarship.amountRaised}
+                  placeholder="e.g. 5000"
+                  value={fundModal.amount}
+                  onChange={(e) => setFundModal((p) => ({ ...p, amount: e.target.value }))}
+                  className="h-10 bg-white/[0.04] border-white/[0.1] text-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20 rounded-xl"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Remaining needed to fully fund: ₹{(fundModal.scholarship.amountNeeded - fundModal.scholarship.amountRaised).toLocaleString()}</p>
+              </div>
+              <DialogFooter className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFundModal({ open: false, scholarship: null, amount: '' })}
+                  className="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-sm text-muted-foreground hover:bg-white/[0.07] hover:text-foreground transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+                >
+                  Confirm Contribution
+                </button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

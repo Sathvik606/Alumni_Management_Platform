@@ -43,6 +43,10 @@ router.get('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
+    if (req.user.role === 'student') {
+      return res.status(403).json({ message: 'Students cannot post job openings. Only alumni and admins can share opportunities.' });
+    }
+
     const { title, company, location, type, mode, description, requirements, salaryRange, applyLink } = req.body;
 
     const job = await Job.create({

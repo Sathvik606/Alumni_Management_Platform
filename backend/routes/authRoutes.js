@@ -16,7 +16,7 @@ const generateToken = (id) => {
 // @desc    Register a new alumni
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, email, password, graduationYear, department } = req.body;
+  const { name, email, password, graduationYear, department, role } = req.body;
 
   try {
     const existingUser = await Alumni.findOne({ email });
@@ -34,6 +34,7 @@ router.post('/register', async (req, res) => {
       password,
       graduationYear,
       department,
+      role: role || 'alumni',
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
     });

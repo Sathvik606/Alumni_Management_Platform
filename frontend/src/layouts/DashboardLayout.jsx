@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Gift, Users, CalendarDays, Briefcase, UserRound,
-  LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight,
+  LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight, MessageSquare, Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,6 +21,8 @@ const navItems = [
   { label: 'Alumni', icon: Users, to: '/alumni' },
   { label: 'Events', icon: CalendarDays, to: '/events' },
   { label: 'Jobs', icon: Briefcase, to: '/jobs' },
+  { label: 'Mentorship', icon: MessageSquare, to: '/mentorship' },
+  { label: 'Scholarships', icon: Award, to: '/scholarships' },
   { label: 'Donations', icon: Gift, to: '/donations' },
   { label: 'Profile', icon: UserRound, to: '/profile' },
 ];

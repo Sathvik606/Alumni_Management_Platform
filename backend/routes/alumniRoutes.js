@@ -8,7 +8,7 @@ const { protect, adminOnly } = require('../middleware/authMiddleware');
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const { name, department, graduationYear, company, email } = req.query;
+    const { name, department, graduationYear, company, email, isMentor } = req.query;
 
     let filter = {};
     if (name) filter.name = { $regex: name, $options: 'i' };
@@ -16,6 +16,7 @@ router.get('/', protect, async (req, res) => {
     if (graduationYear) filter.graduationYear = graduationYear;
     if (company) filter.company = { $regex: company, $options: 'i' };
     if (email) filter.email = email;
+    if (isMentor === 'true') filter.isMentor = true;
 
     const alumni = await Alumni.find(filter).select('-password');
     res.json(alumni);
@@ -76,7 +77,7 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this profile' });
     }
 
-    const { name, department, graduationYear, currentJobTitle, company, location, linkedin, phone, bio, profilePicture } = req.body;
+    const { name, department, graduationYear, currentJobTitle, company, location, linkedin, phone, bio, profilePicture, isMentor, mentorshipTopic } = req.body;
 
     alumni.name = name || alumni.name;
     alumni.department = department || alumni.department;
@@ -88,6 +89,8 @@ router.put('/:id', protect, async (req, res) => {
     alumni.phone = phone || alumni.phone;
     alumni.bio = bio || alumni.bio;
     if (profilePicture !== undefined) alumni.profilePicture = profilePicture;
+    if (typeof isMentor === 'boolean') alumni.isMentor = isMentor;
+    if (mentorshipTopic !== undefined) alumni.mentorshipTopic = mentorshipTopic;
 
     const updated = await alumni.save();
     const result = updated.toObject();
@@ -122,8 +125,8 @@ router.put('/:id/role', protect, adminOnly, async (req, res) => {
     const { role } = req.body;
     
     // Validate role
-    if (!role || !['alumni', 'admin'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role. Must be "user" or "admin"' });
+    if (!role || !['alumni', 'admin', 'student'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be "alumni", "student", or "admin"' });
     }
 
     const alumni = await Alumni.findById(req.params.id);
